@@ -1,20 +1,20 @@
-#CHAT
+# CHAT
 _El chat hasta solo funciona en la terminal
-##INSTALACIÓN
+## INSTALACIÓN
 _Se clona el repositorio
 ```
 $ https://github.com/FERBP3/Proyecto-Chat.git
 ```
-##En este punto hay dos formas de correr el programa
+## En este punto hay dos formas de correr el programa
 _Se redirecciona el GOPATH al directorio donde se clonó el reposotorio
 ```
 $ export $GOPATH=$RutaActual/
 ```
-##Después se generan los binarios. Estando dentro de la carpeta src, escribimos:
+## Después se generan los binarios. Estando dentro de la carpeta src, escribimos:
 ```
 $ go install Servidor/ Cliente/ Util/
 ```
-##Luego para levantar el servidor ejecutamos
+## Luego para levantar el servidor ejecutamos
 ```
 $ $GOPATH/bin/Servidor :1234
 ```
