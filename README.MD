@@ -25,4 +25,5 @@ _Luego se ejecuta el cliente de la misma manera:_
 $ $GOPATH/bin/Cliente :1234
 ```
 ## Autor
-* **Brigido Pablo José Fernando**-*No. Cuenta:314146171*
+* **Brigido Pablo José Fernando**-
+* **No. Cuenta:314146171**
