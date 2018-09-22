@@ -1,5 +1,5 @@
 # CHAT
-_El chat hasta solo funciona en la terminal_
+_El chat hasta ahora solo funciona en la terminal_
 ## INSTALACIÓN
 _Se clona el repositorio_
 ```
@@ -25,5 +25,5 @@ _Luego se ejecuta el cliente de la misma manera:_
 $ $GOPATH/bin/Cliente :1234
 ```
 ## Autor
-* **Brigido Pablo José Fernando**-
+* **Brigido Pablo José Fernando**
 * **No. Cuenta:314146171**
