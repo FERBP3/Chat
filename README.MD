@@ -6,9 +6,9 @@ _Se clona el repositorio_
 $ https://github.com/FERBP3/Proyecto-Chat.git
 ```
 ## En este punto hay dos formas de correr el programa
-_Se redirecciona el GOPATH al directorio donde se clonó el reposotorio_
+_Se redirecciona el GOPATH al directorio donde se clonó el reposotorio (La ruta es absoluta)_
 ```
-$ export $GOPATH=$RutaActual/
+$ export GOPATH=$RutaActual/
 ```
 ## Después se generan los binarios. Estando dentro de la carpeta src, escribimos:
 ```
