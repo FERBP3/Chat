@@ -24,8 +24,8 @@ _Luego se ejecuta el cliente de la misma manera:_
 ```
 $ $GOPATH/bin/Cliente :1234
 ```
-##PRUEBAS UNITARIAS
-_Para correr las prubas unitarias se ejecuta estando dentro de la carpeta src/
+## PRUEBAS UNITARIAS
+_Para correr las prubas unitarias se ejecuta estando dentro de la carpeta src/_
 ```
 $ go test Servidor/
 $ go test Cliente/
