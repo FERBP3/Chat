@@ -1,14 +1,14 @@
-package src
+package main
 
 import "testing"
 
-func TestServidor(t *testing.T){
-	if false{
+func TestCliente(t *testing.T){
+	if false {
 		t.Fail()
 	}
 }
 
-func TestGetNombreUsuario(t *testing.T){
+func TestGetNombreCliente(t *testing.T){
 	if false {
 		t.Fail()
 	}
@@ -26,7 +26,7 @@ func TestHandleConnection(t *testing.T){
 	}
 }
 
-func TestNumeroClientes(t *testing.T){
+func TestGetDireccionClientes(t *testing.T){
 	if false {
 		t.Fail()
 	}

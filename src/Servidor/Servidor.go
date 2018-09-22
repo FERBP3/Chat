@@ -7,7 +7,43 @@ import (
 	"log"
 	"bufio"
 	"strings"
+	"errors"
 	//"./Util"
+)
+
+var Comandos = [...]string{
+			"IDENTIFY",
+			"STATUS",
+			"USERS",
+			"MESSAGE",
+			"PUBLICMESSAGE",
+			"CREATEROOM",
+			"INVITE",
+			"JOINROOM",
+			"ROOMESSAGE",
+			"DISCONNECT",
+	}
+const (
+	
+
+	MensajeComandos = "...INVALID MESSAGE\n"+
+			"...VALID MENSSAGES ARE:\n"+
+			"...IDENTIFY username\n"+
+			"...STATUS userStatus = {ACTIVE, AWAY, BUSY}\n"+
+			"...USERS\n"+
+			"...MESSAGE username messageContent\n"+
+			"...PUBLICMESSAGE messageContent\n"+
+			"...CREATEROOM roomname\n"+
+			"...INVITE roomname user1 user2 ...\n"+
+			"...JOINROOM roomname\n"+
+			"...ROOMESSAGE roomname messageContent\n"+
+			"...DISCONNECT\n"
+	MensajeIdentidad = "...DEBES IDENTIFICARTE PRIMERO\n"+
+						"...PARA IDENTIFICARTE: IDENTIFY USERNAME\n"
+	mensajeDisponible = "EL NOMBRE DE USUARIO NO ESTÁ DISPONIBLE\n"
+	mensajeEstado = "...ESTADO INVALIDO\n"+
+					 "...LOS ESTADOS PUEDEN SER: ACTIVE, AWAY, BUSY\n"
+
 )
 
 type Cliente struct{
@@ -23,80 +59,103 @@ type Sala struct {
 	Invitados []Cliente
 }
 
-func main(){
-	direccion := os.Args[1]
+type TCPServidor struct {
+	Direccion string
+	Servidor net.Listener
+	Clientes map[string]*Cliente
+	NuevasConexiones chan net.Conn
+	ConexionesCerradas chan net.Conn
+	Mensajes chan string
+	Salas map[string]*Sala
+}
 
-	clientes := make(map[string]*Cliente)
-	nuevasConexiones := make(chan net.Conn)
-	conexionesCerradas := make(chan net.Conn)
-	mensajes := make(chan string)
-	salas := make(map[string]*Sala)
-
-	fmt.Println("Cargando servidor...")
-	servidor, err := net.Listen("tcp", direccion)
-	if err != nil {
-		fmt.Println("Error en la conexión del servidor")
-		os.Exit(1)
+func NewServer(protocolo, direccion string) (*TCPServidor, error) {
+	if protocolo == "tcp" {
+		return &TCPServidor {
+			Direccion: direccion,
+			Clientes: make(map[string]*Cliente),
+			NuevasConexiones: make(chan net.Conn),
+			ConexionesCerradas: make(chan net.Conn),
+			Mensajes: make(chan string),
+			Salas: make(map[string]*Sala),
+		}, nil
 	}
-	defer servidor.Close()
-	fmt.Println("Servidor activo")
+	return nil, errors.New("EL PROTOCOLO ES INVÁLIDO")
+}
 
-	go aceptaConexiones(servidor, nuevasConexiones)
+func (t *TCPServidor) Run() (err error) {
+	t.Servidor, err = net.Listen("tcp", t.Direccion)
+	if err != nil {
+		return err
+	}
+	defer t.Close()
+
+	go t.AceptaConexiones()
 	for {
 		select {
-		case conn := <- nuevasConexiones:
-			go manejaConexion(conn, clientes, mensajes, salas, conexionesCerradas)
-		case mensaje := <- mensajes:
-			for _, cliente := range clientes {
-				go mandaMensaje(cliente.Conn, mensaje, conexionesCerradas)
+		case conn := <- t.NuevasConexiones:
+			go manejaConexion(conn, t.Clientes, t.Mensajes, t.Salas, t.ConexionesCerradas)
+		case mensaje := <- t.Mensajes:
+			for _, cliente := range t.Clientes {
+				go mandaMensaje(cliente.Conn, mensaje, t.ConexionesCerradas)
 			}
 			log.Printf("Nuevo Mensaje: %s", mensaje)
-			log.Printf("Transmitido a %d clientes", len(clientes))
+			log.Printf("Transmitido a %d clientes", len(t.Clientes))
 
-		case conn := <- conexionesCerradas:
-			usuario := buscaUsuario(conn, clientes)
-			delete(clientes, usuario)
+		case conn := <- t.ConexionesCerradas:
+			usuario := buscaUsuario(conn, t.Clientes)
+			delete(t.Clientes, usuario)
 			conn.Close()
 			log.Printf("Cliente %v desconectado", usuario)
 		}
 	}
+	return
 }
 
-func aceptaConexiones(servidor net.Listener, nuevasConexiones chan net.Conn){
+
+func (t *TCPServidor) Close() (err error) {
+	return t.Servidor.Close()
+}
+
+func (t *TCPServidor) AceptaConexiones(){
 	for {
-		conn, err := servidor.Accept()
+		conn, err := t.Servidor.Accept()
 		if err != nil {
-				fmt.Println("Error: ",err)
-				os.Exit(1)
-			}
-		nuevasConexiones <- conn
+			err = errors.New("No se pudo aceptar la conexion")
+			break
+		}
+		if conn == nil {
+			err = errors.New("No se pudo crear la conexion")
+			break
+		}
+		t.NuevasConexiones <- conn
 	}
 }
 
-func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string, 
+func main(){
+	direccion := os.Args[1]
+	fmt.Println("Cargando servidor...")
+	servidor, err := NewServer("tcp", direccion)
+	if err != nil {
+		fmt.Println("Error en la conexión del servidor")
+		os.Exit(1)
+	}
+	fmt.Println("Servidor activo")
+	servidor.Run()
+
+}
+
+func leeMensaje(conn net.Conn, mensajes chan string, 
 				clientes map[string]*Cliente, salas map[string]*Sala, 
 				conexionesCerradas chan net.Conn){
 	lector := bufio.NewReader(conn)
 	var nombreUsuario string
 	var evento string
 	var comando []string
-	var mensaje string
 	var nombreSala string
 
-	mensajeComandos := "...INVALID MESSAGE\n"+
-			"...VALID MENSSAGES ARE:\n"+
-			"...IDENTIFY username\n"+
-			"...STATUS userStatus = {ACTIVE, AWAY, BUSY}\n"+
-			"...USERS\n"+
-			"...MESSAGE username messageContent\n"+
-			"...PUBLICMESSAGE messageContent\n"+
-			"...CREATEROOM roomname\n"+
-			"...INVITE roomname user1 user2 ...\n"+
-			"...JOINROOM roomname\n"+
-			"...ROOMESSAGE roomname messageContent\n"+
-			"...DISCONNECT\n"
-	mensajeIdentidad := "...DEBES IDENTIFICARTE PRIMERO\n"+
-						"...PARA IDENTIFICARTE: IDENTIFY USERNAME\n"
+	// MensajeIdentidad := "...DEBES IDENTIFICARTE PRIMERO\n"+
+	// 					"...PARA IDENTIFICARTE: IDENTIFY USERNAME\n"
 	mensajeDisponible := "EL NOMBRE DE USUARIO NO ESTÁ DISPONIBLE\n"
 	mensajeEstado := "...ESTADO INVALIDO\n"+
 					 "...LOS ESTADOS PUEDEN SER: ACTIVE, AWAY, BUSY\n"
@@ -109,14 +168,14 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 		entrada = strings.TrimSpace(entrada)
 		comando = strings.Fields(entrada)
 		if len(comando) < 1 {
-			mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+			mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 			continue
 		}
 
 		switch evento = comando[0]; evento {
 		case "IDENTIFY":
 			if len(comando) < 2{
-				mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+				mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
@@ -124,6 +183,7 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 			_, ok := clientes[nombreUsuario]
 			if ok {
 				mandaMensaje(conn, mensajeDisponible, conexionesCerradas)
+				nombreUsuario = ""
 				break
 			}else {
 				mandaMensaje(conn,"Conectado!\n", conexionesCerradas)
@@ -135,7 +195,8 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 	 		log.Printf("Nuevo Cliente aceptado %v. No. clientes: %d", nombreUsuario, len(clientes))
 				break
 			}
-			}else { 
+			}else {
+
 			nuevoNombre := comando[1]
 			_, ok := clientes[nuevoNombre]
 			if ok {
@@ -154,11 +215,11 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 
 		case "STATUS":
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			if len(comando) < 2{
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			estado := comando[1]
@@ -170,9 +231,10 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 
 		case "USERS":
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
+			mensaje := ""
 			for _,usuario := range clientes{
 				mensaje += "["+usuario.Estado+"]"+usuario.Nombre+"\n"
 			}
@@ -180,23 +242,23 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 
 		case "PUBLICMESSAGE":
 			if len(comando) < 2 {
-				mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+				mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
-			mensaje = "...PUBLIC-"+nombreUsuario+":"+strings.Join(comando[1:]," ")+"\n"
+			mensaje := "...PUBLIC-"+nombreUsuario+":"+strings.Join(comando[1:]," ")+"\n"
 			mensajes <- mensaje
 
 		case "MESSAGE":
 			if len(comando) < 3 {
-				mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+				mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			receptor,ok := clientes[comando[1]]
@@ -204,16 +266,16 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 				mandaMensaje(conn, "El usuario "+comando[1]+" no existe.\n", conexionesCerradas)
 				break
 			}
-			mensaje = "..."+nombreUsuario+":"+strings.Join(comando[2:]," ")+"\n"
+			mensaje := "..."+nombreUsuario+":"+strings.Join(comando[2:]," ")+"\n"
 			mandaMensaje(receptor.Conn, mensaje, conexionesCerradas)
 
 		case "CREATEROOM":
 			if len(comando) < 2 {
-				mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+				mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			nombreSala = comando[1]
@@ -227,11 +289,11 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 
 		case "INVITE":
 			if len(comando) < 3 {
-				mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+				mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			nombreSala = comando[1]
@@ -260,11 +322,11 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 
 		case "ROOMESSAGE":
 			if len(comando) < 3 {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			nombreSala = comando[1]
@@ -277,18 +339,18 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 				mandaMensaje(conn, "...TÚ NO ERES PARTE DE ESTA SALA\n", conexionesCerradas)
 				break
 			}
-			mensaje = "..."+nombreSala+"-"+nombreUsuario+":"+strings.Join(comando[2:], " ")+"\n"
+			mensaje := "..."+nombreSala+"-"+nombreUsuario+":"+strings.Join(comando[2:], " ")+"\n"
 			for _, miembro := range sala.Miembros {
 				mandaMensaje(miembro.Conn, mensaje, conexionesCerradas)
 			}
 
 		case "JOINROOM":
 			if len(comando) < 2 {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			if nombreUsuario == "" {
-				mandaMensaje(conn, mensajeIdentidad, conexionesCerradas)
+				mandaMensaje(conn, MensajeIdentidad, conexionesCerradas)
 				break
 			}
 			nombreSala := comando[1]
@@ -311,7 +373,7 @@ func leeMensaje(conn net.Conn, mensajes chan string, //nombreUsuario string,
 		case "DISCONNECT":
 			conexionesCerradas <- conn
 		default:
-			mandaMensaje(conn, mensajeComandos, conexionesCerradas)
+			mandaMensaje(conn, MensajeComandos, conexionesCerradas)
 		}
 	}
 }
