@@ -1,19 +1,18 @@
 # CHAT
 _El chat hasta ahora solo funciona en la terminal_
 ## INSTALACIÓN
-_Se clona el repositorio_
+_Se obtiene con la ayuda del comando go get_
 ```
-$ https://github.com/FERBP3/Proyecto-Chat.git
+$ go get github.com/FERBP3/Proyecto-Chat
+
 ```
-## En este punto hay dos formas de correr el programa
-_Se redirecciona el GOPATH al directorio donde se clonó el reposotorio (La ruta es absoluta)_
+## Se compila y se generan los binarios del Cliente y el Servidor
+_Estos estarán en $GOPATH/bin_
 ```
-$ export GOPATH=$RutaActual/
+$ go install github.com/FERBP3/Proyecto-Chat/src/Cliente/
+$ go install github.com/FERBP3/Proyecto-Chat/src/Servidor/
 ```
-## Después se generan los binarios. Estando dentro de la carpeta src, escribimos:
-```
-$ go install Servidor/ Cliente/ Util/
-```
+
 ## Luego para levantar el servidor ejecutamos
 ```
 $ $GOPATH/bin/Servidor :1234
