@@ -3,7 +3,7 @@ _El chat hasta ahora solo funciona en la terminal_
 ## INSTALACIÓN
 _Se obtiene con la ayuda del comando go get_
 ```
-$ go get github.com/FERBP3/Proyecto-Chat
+$ go get github.com/FERBP3/Chat
 
 ```
 ## Se compila y se generan los binarios del Cliente y el Servidor
