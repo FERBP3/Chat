@@ -31,4 +31,4 @@ $ go test $GOPATH/src/github.com/FERBP3/Proyecto-Chat/src/Cliente/
 ```
 ## Autor
 * **Brigido Pablo José Fernando**
-* **No. Cuenta:314146171**
+
